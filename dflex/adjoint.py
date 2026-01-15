@@ -1105,9 +1105,9 @@ class Adjoint:
 
                 indices = []
 
-                # Python 3.9+ 兼容性修复: slice 不再被包装在 ast.Index 中
+                # Python 3.9+ compatibility fix: slice is no longer wrapped in ast.Index
                 slice_node = node.slice
-                # 在 Python 3.8 及之前，slice 被包装在 ast.Index 中
+                # In Python 3.8 and earlier, slice was wrapped in ast.Index
                 if hasattr(ast, 'Index') and isinstance(slice_node, ast.Index):
                     slice_node = slice_node.value
                 
@@ -1761,10 +1761,13 @@ def kernel(f):
 
 
 def compile():
-    # 临时禁用 CUDA 以避免 GCC 11 兼容性问题
-    # 如果需要 GPU 支持，请安装 GCC 10 或配置 NVCC 使用旧版本 GCC
-    use_cuda = False
-    print("[INFO] CUDA 编译已禁用（GCC 11 兼容性问题）。仅使用 CPU 模式。")
+    # Determine whether to enable CUDA based on environment and availability, gracefully fallback to CPU on failure
+    env_flag = os.environ.get("DFLEX_USE_CUDA")
+    if env_flag is not None:
+        use_cuda = env_flag.strip().lower() in ("1", "true", "yes")
+    else:
+        use_cuda = torch.cuda.is_available()
+    print(f"[INFO] CUDA availability: {torch.cuda.is_available()}, planned to enable: {use_cuda}")
 
     cpp_source = ""
     cuda_source = ""
@@ -1869,37 +1872,72 @@ def compile():
 #        cpp_flags = ["/Zi", "/Od", "/DEBUG"]
 #        ld_flags = ["/DEBUG"]
     else:
-        cpp_flags = ["-Z", "-O2", "-DNDEBUG"]
+        # Remove invalid -Z flag, add -fPIC for shared object build compatibility
+        cpp_flags = ["-O2", "-DNDEBUG", "-fPIC"]
         ld_flags = ["-DNDEBUG"]
 
-    # just use minimum to ensure compatability
-    cuda_flags = ['-gencode=arch=compute_35,code=compute_35']
+    # Use conservative PTX targets to avoid compilation failure due to unsupported architectures
+    cuda_flags = [
+        "--allow-unsupported-compiler",
+        "-gencode=arch=compute_70,code=compute_70",
+        "-gencode=arch=compute_80,code=compute_80"
+    ]
 
-    # release config
-    if use_cuda:
-        module = torch.utils.cpp_extension.load_inline('kernels',
-                                                       cpp_sources=[cpp_source],
-                                                       cuda_sources=[cuda_source],
-                                                       functions=entry_points,
-                                                       extra_cflags=cpp_flags,
-                                                       extra_ldflags=ld_flags,
-                                                       extra_cuda_cflags=cuda_flags,
-                                                       build_directory=build_path,
-                                                       extra_include_paths=[include_path],
-                                                       verbose=True,
-                                                       with_pytorch_error_handling=False)
-    else:
-        module = torch.utils.cpp_extension.load_inline('kernels',
-                                                       cpp_sources=[cpp_source],
-                                                       cuda_sources=[],
-                                                       functions=entry_points,
-                                                       extra_cflags=cpp_flags,
-                                                       extra_ldflags=ld_flags,
-                                                       extra_cuda_cflags=cuda_flags,
-                                                       build_directory=build_path,
-                                                       extra_include_paths=[include_path],
-                                                       verbose=True,
-                                                       with_pytorch_error_handling=False)
+    # Release config, automatically fallback to CPU if CUDA build fails
+    try:
+        if use_cuda:
+            print("[INFO] Attempting to enable CUDA inline compilation...")
+            module = torch.utils.cpp_extension.load_inline(
+                'kernels',
+                cpp_sources=[cpp_source],
+                cuda_sources=[cuda_source],
+                functions=entry_points,
+                extra_cflags=cpp_flags,
+                extra_ldflags=ld_flags,
+                extra_cuda_cflags=cuda_flags,
+                build_directory=build_path,
+                extra_include_paths=[include_path],
+                verbose=True,
+                with_pytorch_error_handling=False
+            )
+        else:
+            print("[INFO] Only compiling CPU inline module...")
+            module = torch.utils.cpp_extension.load_inline(
+                'kernels',
+                cpp_sources=[cpp_source],
+                cuda_sources=[],
+                functions=entry_points,
+                extra_cflags=cpp_flags,
+                extra_ldflags=ld_flags,
+                extra_cuda_cflags=cuda_flags,
+                build_directory=build_path,
+                extra_include_paths=[include_path],
+                verbose=True,
+                with_pytorch_error_handling=False
+            )
+    except Exception as e:
+        print(f"[WARN] CUDA build failed, falling back to CPU. Reason: {e}")
+        use_cuda = False
+
+        # Rebuild CPU-only entry point list to avoid referencing undefined CUDA symbols
+        entry_points_cpu = []
+        for name, _kernel in user_kernels.items():
+            entry_points_cpu.append(name + "_cpu_forward")
+            entry_points_cpu.append(name + "_cpu_backward")
+
+        module = torch.utils.cpp_extension.load_inline(
+            'kernels',
+            cpp_sources=[cpp_source],
+            cuda_sources=[],
+            functions=entry_points_cpu,
+            extra_cflags=cpp_flags,
+            extra_ldflags=ld_flags,
+            extra_cuda_cflags=cuda_flags,
+            build_directory=build_path,
+            extra_include_paths=[include_path],
+            verbose=True,
+            with_pytorch_error_handling=False
+        )
 
     # update cache
     f = open(cache_file, 'w')

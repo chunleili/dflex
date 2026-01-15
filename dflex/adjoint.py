@@ -1105,14 +1105,20 @@ class Adjoint:
 
                 indices = []
 
-                if isinstance(node.slice.value, ast.Tuple):
+                # Python 3.9+ 兼容性修复: slice 不再被包装在 ast.Index 中
+                slice_node = node.slice
+                # 在 Python 3.8 及之前，slice 被包装在 ast.Index 中
+                if hasattr(ast, 'Index') and isinstance(slice_node, ast.Index):
+                    slice_node = slice_node.value
+                
+                if isinstance(slice_node, ast.Tuple):
                     # handles the M[i, j] case
-                    for arg in node.slice.value.elts:
+                    for arg in slice_node.elts:
                         var = adj.eval(arg)
                         indices.append(var)
                 else:
                     # simple expression
-                    var = adj.eval(node.slice.value)
+                    var = adj.eval(slice_node)
                     indices.append(var)
 
                 out = adj.add_call(functions["index"], [target, *indices])
@@ -1728,15 +1734,23 @@ def kernel(f):
 
             self.func = f
 
-        def register(self, module):
+        def register(self, module, use_cuda=None):
 
             # lookup entry points based on name
             self.forward_cpu = eval("module." + self.func.__name__ + "_cpu_forward")
             self.backward_cpu = eval("module." + self.func.__name__ + "_cpu_backward")
 
-            if (torch.cuda.is_available()):
-                self.forward_cuda = eval("module." + self.func.__name__ + "_cuda_forward")
-                self.backward_cuda = eval("module." + self.func.__name__ + "_cuda_backward")
+            # 只有在 CUDA 实际编译时才注册 CUDA 函数
+            if use_cuda is None:
+                use_cuda = torch.cuda.is_available()
+            
+            if use_cuda:
+                try:
+                    self.forward_cuda = eval("module." + self.func.__name__ + "_cuda_forward")
+                    self.backward_cuda = eval("module." + self.func.__name__ + "_cuda_backward")
+                except AttributeError:
+                    # CUDA 函数不存在，说明未编译 CUDA 版本
+                    pass
 
     k = Kernel(f)
 
@@ -1747,9 +1761,10 @@ def kernel(f):
 
 
 def compile():
-    use_cuda = torch.cuda.is_available()
-    if not use_cuda:
-        print("[INFO] CUDA support not found. Disabling CUDA kernel compilation.")
+    # 临时禁用 CUDA 以避免 GCC 11 兼容性问题
+    # 如果需要 GPU 支持，请安装 GCC 10 或配置 NVCC 使用旧版本 GCC
+    use_cuda = False
+    print("[INFO] CUDA 编译已禁用（GCC 11 兼容性问题）。仅使用 CPU 模式。")
 
     cpp_source = ""
     cuda_source = ""
@@ -1831,7 +1846,7 @@ def compile():
 
             # register kernel methods
             for k in user_kernels.values():
-                k.register(module)
+                k.register(module, use_cuda=use_cuda)
 
             return module
 
@@ -1893,7 +1908,7 @@ def compile():
 
     # register kernel methods
     for k in user_kernels.values():
-        k.register(module)
+        k.register(module, use_cuda=use_cuda)
 
     return module
 

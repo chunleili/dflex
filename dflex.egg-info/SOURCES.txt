@@ -8,7 +8,6 @@ dflex/mat22.h
 dflex/mat33.h
 dflex/matnn.h
 dflex/model.py
-dflex/muscle.py
 dflex/quat.h
 dflex/render.py
 dflex/sim.py

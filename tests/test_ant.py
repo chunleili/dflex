@@ -60,7 +60,7 @@ class Robot:
         self.mode = mode
         self.render = render   
 
-        self.parse_mjcf("./assets/" + self.name + ".xml", builder,
+        self.parse_mjcf("./tests/assets/" + self.name + ".xml", builder,
             stiffness=0.0,
             damping=0.0,
             contact_ke=1.e+3,
@@ -354,7 +354,7 @@ class Robot:
                     
                     # apply actions
                     #self.state.joint_act[6:] = actions
-                    self.state = self.integrator.forward(self.model, self.state, self.sim_dt, i==0)
+                    self.state = self.integrator.forward(self.model, self.state, self.sim_dt)
                     self.sim_time += self.sim_dt
  
             discount_time = self.sim_time 
@@ -526,5 +526,5 @@ class Robot:
 
 robot = Robot(depth=1, mode='dflex', render=True, adapter='cuda')
 #robot.load()
-#robot.train(mode='adam')
-robot.run()
+robot.train(mode='adam')
+# robot.run()

@@ -64,8 +64,8 @@ class HumanoidSNU:
             self.filter = { "Torso", "Neck", "Head", "ShoulderR", "ShoulderL"}
             self.ground = False
         
-        self.node_map, self.xform_map, self.mesh_map = test_util.parse_skeleton("assets/snu/arm.xml", builder, self.filter)
-        self.muscles = test_util.parse_muscles("assets/snu/muscle284.xml", builder, self.node_map, self.xform_map)
+        self.node_map, self.xform_map, self.mesh_map = test_util.parse_skeleton("tests/assets/snu/arm.xml", builder, self.filter)
+        self.muscles = test_util.parse_muscles("tests/assets/snu/muscle284.xml", builder, self.node_map, self.xform_map)
 
         # set initial position 1m off the ground
         if self.name == "humanoid_snu":
@@ -382,13 +382,14 @@ class HumanoidSNU:
 
 env = HumanoidSNU(depth=1, mode='dflex', render=True, adapter='cpu')
 
-#df.config.no_grad = True
-#df.config.check_grad = True
-#df.config.verify_fp = True
+# df.config.no_grad = True
+# df.config.check_grad = True
+# df.config.verify_fp = True
 
-#robot.load()
-#env.run()
+# robot.load()
+# env.run()
 
-#env.load()
+# env.load()
 env.train(mode='adam')
-#robot.verify(eps=1.e+1)
+# robot.verify(eps=1.e+1)
+# env.run()

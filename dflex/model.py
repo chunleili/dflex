@@ -352,13 +352,13 @@ class Model:
           
         # particles
         if (self.particle_count):
-            s.particle_q = torch.clone(self.particle_q)
-            s.particle_qd = torch.clone(self.particle_qd)
+            s.particle_q = torch.clone(self.particle_q).detach()
+            s.particle_qd = torch.clone(self.particle_qd).detach()
 
         # articulations
         if (self.link_count):
-            s.joint_q = torch.clone(self.joint_q)
-            s.joint_qd = torch.clone(self.joint_qd)
+            s.joint_q = torch.clone(self.joint_q).detach()
+            s.joint_qd = torch.clone(self.joint_qd).detach()
             s.joint_act = torch.zeros_like(self.joint_qd)
 
             s.joint_q.requires_grad = True

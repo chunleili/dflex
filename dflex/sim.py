@@ -2179,7 +2179,7 @@ class SemiImplicitIntegrator:
     def __init__(self):
         pass
 
-    def forward(self, model: Model, state_in: State, dt: float, substeps: int, mass_matrix_freq: int) -> State:
+    def forward(self, model: Model, state_in: State, dt: float, substeps: int = 1, mass_matrix_freq: int = 1) -> State:
         """Performs a single integration step forward in time
         
         This method inserts a node into the PyTorch computational graph with
@@ -2191,6 +2191,8 @@ class SemiImplicitIntegrator:
             model: Simulation model
             state: Simulation state at the start the time-step
             dt: The simulation time-step (usually in seconds)
+            substeps: Number of substeps to perform (default: 1)
+            mass_matrix_freq: Frequency of mass matrix updates (default: 1)
 
         Returns:
 

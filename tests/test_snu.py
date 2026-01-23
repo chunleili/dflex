@@ -19,8 +19,7 @@ import numpy as np
 np.set_printoptions(precision=5, linewidth=256, suppress=True)
 
 from pxr import Usd, UsdGeom, Gf
-
-import test_util
+import skel_parser
 
 
 class HumanoidSNU:
@@ -64,8 +63,9 @@ class HumanoidSNU:
             self.filter = { "Torso", "Neck", "Head", "ShoulderR", "ShoulderL"}
             self.ground = False
         
-        self.node_map, self.xform_map, self.mesh_map = test_util.parse_skeleton("tests/assets/snu/arm.xml", builder, self.filter)
-        self.muscles = test_util.parse_muscles("tests/assets/snu/muscle284.xml", builder, self.node_map, self.xform_map)
+        skel = skel_parser.Skeleton("tests/assets/snu/arm.xml", "tests/assets/snu/muscle284.xml", builder, self.filter)
+        self.node_map, self.xform_map, self.mesh_map = skel.node_map, skel.xform_map, skel.mesh_map
+        self.muscles = skel.muscles
 
         # set initial position 1m off the ground
         if self.name == "humanoid_snu":

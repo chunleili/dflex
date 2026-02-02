@@ -19,7 +19,6 @@ np.set_printoptions(precision=5, linewidth=256, suppress=True)
 
 from pxr import Usd, UsdGeom, Gf
 
-import test_util
 
 import xml.etree.ElementTree as ET
 
@@ -46,7 +45,7 @@ class Robot:
 
     ground = True
 
-    name = "humanoid"
+    name = "ant"
 
     regularization = 1.e-3
     

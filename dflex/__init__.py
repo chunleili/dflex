@@ -5,6 +5,7 @@
 # distribution of this software and related documentation without an express
 # license agreement from NVIDIA CORPORATION is strictly prohibited.
 
+from dflex import config
 from dflex.sim import *
 from dflex.render import *
 from dflex.adjoint import compile
